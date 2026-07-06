@@ -20,15 +20,15 @@
 
 ## ♥️ Sponsor
 
-[![302.AI](assets/sponsors/302.ai-en.jpg)](https://share.302.ai/oUDqQ6)
+[![Gamma Remover](assets/sponsors/gamma-remover.webp)](https://gammaremover.com/)
 
-[302.AI](https://share.302.ai/oUDqQ6) is a pay-as-you-go enterprise AI resource hub that offers the latest and most comprehensive AI models and APIs on the market, along with a variety of ready-to-use online AI applications.
+[Gamma Remover](https://gammaremover.com/) — Free browser-local Gamma watermark remover for PDF & PPTX. No signup, instant results, 100% private. Your files never leave your device.
 
 ---
 
-[![NotebookLM Remover](assets/sponsors/notebooklm-remover.png)](https://notebooklmremover.org)
+[![302.AI](assets/sponsors/302.ai-en.jpg)](https://share.302.ai/oUDqQ6)
 
-[NotebookLM Remover](https://notebooklmremover.org) — Free browser-local AI watermark remover. Remove NotebookLM watermarks across every format — video, PDF, PPTX, infographic, podcast, and more. 100% private, works offline.
+[302.AI](https://share.302.ai/oUDqQ6) is a pay-as-you-go enterprise AI resource hub that offers the latest and most comprehensive AI models and APIs on the market, along with a variety of ready-to-use online AI applications.
 
 ---
 

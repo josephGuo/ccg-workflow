@@ -7,6 +7,7 @@ import { getLegacyCommandIds, getWorkflowById } from './installer-data'
 import { PACKAGE_ROOT, injectConfigVariables, replaceHomePathsInTemplate } from './installer-template'
 import { readCcgConfig } from './config'
 import { installSkillCommands } from './skill-registry'
+import { version as packageVersion } from '../../package.json'
 
 // ═══════════════════════════════════════════════════════
 // Re-exports — all consumers import from './installer'
@@ -568,9 +569,12 @@ export async function installCodexMode(): Promise<{ success: boolean, message: s
       await fs.writeFile(join(codexHome, 'hooks.json'), content, 'utf-8')
     }
 
+    // Write version marker so external tools can check which CCG version installed Codex mode
+    await fs.writeFile(join(codexHome, '.ccg-version'), packageVersion, 'utf-8')
+
     return {
       success: true,
-      message: `Codex mode installed:\n  ~/.codex/AGENTS.md\n  ~/.codex/config.toml\n  ~/.codex/hooks.json\n  ~/.codex/hooks/ccg-workflow.py\n  ~/.codex/agents/ccg-implement.toml\n  ~/.codex/agents/ccg-review.toml\n  ~/.codex/agents/ccg-research.toml`,
+      message: `Codex mode installed:\n  ~/.codex/AGENTS.md\n  ~/.codex/config.toml\n  ~/.codex/hooks.json\n  ~/.codex/hooks/ccg-workflow.py\n  ~/.codex/agents/ccg-implement.toml\n  ~/.codex/agents/ccg-review.toml\n  ~/.codex/agents/ccg-research.toml\n  ~/.codex/.ccg-version (${packageVersion})`,
     }
   }
   catch (error) {
@@ -593,6 +597,7 @@ export async function uninstallCodexMode(): Promise<{ success: boolean, removed:
     join(codexHome, 'agents', 'ccg-research.toml'),
     join(codexHome, 'hooks', 'ccg-workflow.py'),
     join(codexHome, 'hooks.json'),
+    join(codexHome, '.ccg-version'),
   ]
 
   // AGENTS.md — only remove if it contains CCG marker

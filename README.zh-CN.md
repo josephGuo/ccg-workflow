@@ -21,15 +21,15 @@
 
 ## ♥️ Sponsor
 
-[![302.AI](assets/sponsors/302.ai-en.jpg)](https://share.302.ai/oUDqQ6)
+[![Gamma Remover](assets/sponsors/gamma-remover.webp)](https://gammaremover.com/)
 
-[302.AI](https://share.302.ai/oUDqQ6) is a pay-as-you-go enterprise AI resource hub that offers the latest and most comprehensive AI models and APIs on the market, along with a variety of ready-to-use online AI applications.
+[Gamma Remover](https://gammaremover.com/) — 免费浏览器本地 Gamma 水印去除工具。支持 PDF 和 PPTX，无需注册，即时出结果，100% 隐私，文件不离开你的设备。
 
 ---
 
-[![NotebookLM Remover](assets/sponsors/notebooklm-remover.png)](https://notebooklmremover.org)
+[![302.AI](assets/sponsors/302.ai-en.jpg)](https://share.302.ai/oUDqQ6)
 
-[NotebookLM Remover](https://notebooklmremover.org) — 免费浏览器本地 AI 水印去除工具。支持视频、PDF、PPTX、信息图、播客等全格式，100% 隐私，离线可用。
+[302.AI](https://share.302.ai/oUDqQ6) is a pay-as-you-go enterprise AI resource hub that offers the latest and most comprehensive AI models and APIs on the market, along with a variety of ready-to-use online AI applications.
 
 ---
 
