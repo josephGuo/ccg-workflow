@@ -5,6 +5,7 @@ import { version } from '../package.json'
 import { homedir } from 'node:os'
 import { join } from 'pathe'
 import { configMcp } from './commands/config-mcp'
+import { doctor, status } from './commands/doctor'
 import { diagnoseMcp, fixMcp } from './commands/diagnose-mcp'
 import { init } from './commands/init'
 import { showMainMenu } from './commands/menu'
@@ -26,6 +27,8 @@ function customizeHelp(sections: any[]): any[] {
       `  ${ansis.cyan('ccg config mcp')}   ${i18n.t('cli:help.commandDescriptions.configMcp')}`,
       `  ${ansis.cyan('ccg diagnose-mcp')} ${i18n.t('cli:help.commandDescriptions.diagnoseMcp')}`,
       `  ${ansis.cyan('ccg fix-mcp')}      ${i18n.t('cli:help.commandDescriptions.fixMcp')}`,
+      `  ${ansis.cyan('ccg doctor')}       Check installation health`,
+      `  ${ansis.cyan('ccg status')}       Show installation overview`,
       `  ${ansis.cyan('ccg codex-mode')}   Install/uninstall Codex-Led mode`,
       `  ${ansis.cyan('ccg uninstall')}    Uninstall CCG (non-interactive)`,
       '',
@@ -141,6 +144,16 @@ export async function setupCommands(cli: CAC): Promise<void> {
         console.log(ansis.gray(i18n.t('common:availableSubcommands', { list: 'mcp' })))
       }
     })
+
+  // Doctor: environment health check
+  cli
+    .command('doctor', 'Check CCG installation health')
+    .action(async () => { await doctor() })
+
+  // Status: show current installation overview
+  cli
+    .command('status', 'Show CCG installation status')
+    .action(async () => { await status() })
 
   // Codex mode: non-interactive install/uninstall
   cli
