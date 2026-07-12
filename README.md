@@ -37,7 +37,7 @@
 
 ## What is CCG?
 
-**CCG is a workflow engine for Claude Code.** It turns Claude into a multi-model orchestrator — Claude stays in control while dispatching specialized work to Codex (OpenAI) and Gemini (Google) through a Go binary bridge.
+**CCG is a workflow engine for Claude Code.** It turns Claude into a multi-model orchestrator — Claude stays in control while dispatching specialized work to Codex (OpenAI), Gemini (Google), and Grok (xAI) through a Go binary bridge.
 
 One command. Describe what you want. The engine handles the rest.
 
@@ -179,7 +179,7 @@ npx ccg-workflow
 npx ccg-workflow init --skip-prompt
 ```
 
-Requires **Node.js 20+** and **Claude Code CLI**. Codex CLI and Gemini CLI are optional (enable multi-model features).
+Requires **Node.js 20+** and **Claude Code CLI**. Codex CLI, Gemini CLI, and Grok CLI are optional (enable multi-model features).
 
 ## CLI Commands
 
@@ -271,4 +271,4 @@ MIT
 
 ---
 
-v3.1.11 | [Issues](https://github.com/fengshao1227/ccg-workflow/issues) | [Contributing](./CONTRIBUTING.md)
+v3.2.0 | [Issues](https://github.com/fengshao1227/ccg-workflow/issues) | [Contributing](./CONTRIBUTING.md)

@@ -821,12 +821,14 @@ func runCodexTaskWithContext(parentCtx context.Context, taskSpec TaskSpec, backe
 	logger := injectedLogger
 
 	cfg := &Config{
-		Mode:      taskSpec.Mode,
-		Task:      taskSpec.Task,
-		SessionID: taskSpec.SessionID,
-		WorkDir:   taskSpec.WorkDir,
-		Backend:   defaultBackendName,
-		Progress:  taskSpec.Progress,
+		Mode:        taskSpec.Mode,
+		Task:        taskSpec.Task,
+		SessionID:   taskSpec.SessionID,
+		WorkDir:     taskSpec.WorkDir,
+		Backend:     defaultBackendName,
+		Progress:    taskSpec.Progress,
+		GeminiModel: taskSpec.GeminiModel,
+		GrokModel:   taskSpec.GrokModel,
 	}
 
 	commandName := codexCommand
@@ -865,7 +867,8 @@ func runCodexTaskWithContext(parentCtx context.Context, taskSpec TaskSpec, backe
 	// Antigravity (agy) does NOT read stdin at all — it requires -p on every
 	// platform, including Windows (#146). The cmd.exe truncation risk is
 	// accepted because a truncated prompt is better than a silent no-op.
-	promptDirect := useStdin && ((cfg.Backend == "gemini" && !isWindows()) || cfg.Backend == "antigravity")
+	// Grok is a native binary (no .cmd shim), so -p is safe on every platform.
+	promptDirect := useStdin && ((cfg.Backend == "gemini" && !isWindows()) || cfg.Backend == "antigravity" || cfg.Backend == "grok")
 	promptStdinPipe := useStdin && cfg.Backend == "gemini" && isWindows()
 	if useStdin && !promptDirect && !promptStdinPipe {
 		targetArg = "-"

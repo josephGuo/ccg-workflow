@@ -147,6 +147,27 @@ export async function doctor(): Promise<void> {
     detail: hasCodexMode ? 'Installed' : 'Not installed (optional)',
   })
 
+  // 11. Grok CLI (only when routing uses grok)
+  const routingModels = [
+    config?.routing?.frontend?.primary,
+    config?.routing?.backend?.primary,
+    ...(config?.routing?.frontend?.models || []),
+    ...(config?.routing?.backend?.models || []),
+  ]
+  if (routingModels.includes('grok')) {
+    const grokName = process.platform === 'win32' ? 'grok.exe' : 'grok'
+    const grokFallback = join(homedir(), '.grok', 'bin', grokName)
+    const grokVer = execSafe('grok --version') || (await fileExists(grokFallback) ? execSafe(`"${grokFallback}" --version`) : null)
+    const grokAuth = await fileExists(join(homedir(), '.grok', 'auth.json'))
+    checks.push({
+      label: 'Grok CLI',
+      status: grokVer ? (grokAuth ? OK : WARN) : FAIL,
+      detail: grokVer
+        ? `${grokVer.split('\n')[0]}${grokAuth ? '' : ' — not logged in (run: grok login; tokens expire after 7 days)'}`
+        : 'Not found — install: curl -fsSL https://x.ai/cli/install.sh | bash',
+    })
+  }
+
   // Output
   console.log()
   console.log(ansis.cyan.bold(`  CCG Doctor v${packageVersion}`))

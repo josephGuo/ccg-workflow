@@ -63,7 +63,7 @@ export type { SkillMeta } from './skill-registry'
  * Must match the `version` constant in codeagent-wrapper/main.go.
  * When this differs from the installed binary, update triggers re-download.
  */
-const EXPECTED_BINARY_VERSION = '5.11.1'
+const EXPECTED_BINARY_VERSION = '5.12.0'
 
 // ═══════════════════════════════════════════════════════
 // Install context — shared across sub-functions
@@ -298,7 +298,7 @@ async function installPromptFiles(ctx: InstallContext): Promise<void> {
     return
   }
 
-  for (const model of ['codex', 'gemini', 'claude', 'antigravity']) {
+  for (const model of ['codex', 'gemini', 'claude', 'antigravity', 'grok']) {
     try {
       const installed = await copyMdTemplates(
         ctx,
