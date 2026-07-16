@@ -39,6 +39,10 @@ func resetTestHooks() {
 	jsonMarshal = json.Marshal
 	forceKillDelay.Store(5)
 	closeLogger()
+	if globalWebServer != nil {
+		_ = globalWebServer.Stop()
+		globalWebServer = nil
+	}
 	executablePathFn = os.Executable
 	runTaskFn = runCodexTask
 	runCodexTaskFn = defaultRunCodexTaskFn
