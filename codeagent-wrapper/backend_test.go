@@ -389,3 +389,241 @@ func TestParseJSONStream_GrokThoughtsExcludedFromMessage(t *testing.T) {
 		t.Fatalf("message = %q, want %q (thoughts must not leak)", message, "answer")
 	}
 }
+
+func TestKimiBuildArgs_NewMode(t *testing.T) {
+	cfg := &Config{Mode: "new", WorkDir: "/tmp/project", Backend: "kimi"}
+	args := buildKimiArgs(cfg, "do the task")
+	joined := strings.Join(args, " ")
+
+	if !strings.Contains(joined, "--output-format stream-json") {
+		t.Fatalf("args missing stream-json output format: %v", args)
+	}
+	// kimi rejects --yolo/--auto/--plan when combined with -p at startup.
+	for _, forbidden := range []string{"--yolo", "-y", "--auto", "--plan"} {
+		for _, a := range args {
+			if a == forbidden {
+				t.Fatalf("args must not contain %s alongside -p: %v", forbidden, args)
+			}
+		}
+	}
+	if strings.Contains(joined, "--cwd") || strings.Contains(joined, "--add-dir") {
+		t.Fatalf("workdir must come from cmd.Dir, not flags: %v", args)
+	}
+	for i, a := range args {
+		if a == "-p" {
+			if i+1 >= len(args) || args[i+1] != "do the task" {
+				t.Fatalf("-p not followed by task text: %v", args)
+			}
+			return
+		}
+	}
+	t.Fatalf("args missing -p: %v", args)
+}
+
+func TestKimiBuildArgs_ResumeAndModel(t *testing.T) {
+	cfg := &Config{Mode: "resume", SessionID: "01HZXYZ", Backend: "kimi", KimiModel: "kimi-for-coding"}
+	joined := strings.Join(buildKimiArgs(cfg, "continue"), " ")
+
+	if !strings.Contains(joined, "-S 01HZXYZ") {
+		t.Fatalf("resume args missing -S <session>: %s", joined)
+	}
+	if !strings.Contains(joined, "-m kimi-for-coding") {
+		t.Fatalf("args missing -m model: %s", joined)
+	}
+}
+
+func TestKimiBuildArgs_NilConfig(t *testing.T) {
+	if args := buildKimiArgs(nil, "x"); args != nil {
+		t.Fatalf("nil config should return nil args, got %v", args)
+	}
+}
+
+func TestParseJSONStream_KimiEvents(t *testing.T) {
+	// Real shapes captured from `kimi -p ... --output-format stream-json` (v0.35.0).
+	stream := `{"role":"meta","type":"system.version","version":"0.35.0"}
+{"role":"assistant","content":"Hello"}
+{"role":"tool","tool_call_id":"call_1","content":"TOOL OUTPUT MUST NOT LEAK"}
+{"role":"assistant","content":" world"}
+{"role":"meta","type":"session.resume_hint","session_id":"01HZ-ABC","command":"kimi -r 01HZ-ABC","content":"To resume this session: kimi -r 01HZ-ABC"}
+`
+	message, threadID := parseJSONStreamInternal(strings.NewReader(stream), nil, nil, nil, nil)
+
+	if message != "Hello world" {
+		t.Fatalf("message = %q, want %q", message, "Hello world")
+	}
+	if strings.Contains(message, "TOOL OUTPUT") {
+		t.Fatalf("tool output leaked into message: %q", message)
+	}
+	if strings.Contains(message, "To resume this session") {
+		t.Fatalf("meta resume hint leaked into message: %q", message)
+	}
+	if threadID != "01HZ-ABC" {
+		t.Fatalf("threadID = %q, want 01HZ-ABC", threadID)
+	}
+}
+
+func TestParseJSONStream_KimiNotMisreadAsGemini(t *testing.T) {
+	// Gemini's branch keys off `role`; kimi reuses it. A kimi-only stream must
+	// never fall through to the gemini handler (which would append meta
+	// `content` — the resume hint — to the answer).
+	stream := `{"role":"meta","type":"session.resume_hint","session_id":"s1","content":"To resume this session: kimi -r s1"}
+{"role":"assistant","content":"ANSWER"}
+`
+	message, _ := parseJSONStreamInternal(strings.NewReader(stream), nil, nil, nil, nil)
+	if message != "ANSWER" {
+		t.Fatalf("message = %q, want %q", message, "ANSWER")
+	}
+}
+
+func TestParseJSONStream_GeminiStillWinsOverKimi(t *testing.T) {
+	// Gemini stamps a type on every event, so it must keep its own branch.
+	stream := `{"type":"init","sessionId":"g1","model":"gemini-3.1-pro-preview"}
+{"type":"message","role":"assistant","content":"GEM","delta":false}
+{"type":"result","status":"success","sessionId":"g1"}
+`
+	message, threadID := parseJSONStreamInternal(strings.NewReader(stream), nil, nil, nil, nil)
+	if message != "GEM" {
+		t.Fatalf("gemini message = %q, want GEM", message)
+	}
+	if threadID != "g1" {
+		t.Fatalf("gemini threadID = %q, want g1", threadID)
+	}
+}
+
+func TestDiscoversClaudeConfig(t *testing.T) {
+	for _, b := range []string{"grok", "kimi"} {
+		if !discoversClaudeConfig(b) {
+			t.Fatalf("%s should use the fast home", b)
+		}
+	}
+	for _, b := range []string{"codex", "gemini", "claude", "antigravity"} {
+		if discoversClaudeConfig(b) {
+			t.Fatalf("%s reads its own config tree, must not be rerouted", b)
+		}
+	}
+}
+
+func TestApplyFastHome(t *testing.T) {
+	t.Run("hides claude config for grok", func(t *testing.T) {
+		env := applyFastHome(map[string]string{}, "grok", false)
+		home := env["HOME"]
+		if home == "" {
+			t.Skip("symlinks unavailable on this platform")
+		}
+		for _, hidden := range claudeConfigEntries {
+			if _, err := os.Lstat(filepath.Join(home, hidden)); err == nil {
+				t.Fatalf("%s should not exist in the fast home", hidden)
+			}
+		}
+		// .gitconfig etc. must still pass through so sub-agent shell commands work.
+		realHome, _ := os.UserHomeDir()
+		if _, err := os.Stat(filepath.Join(realHome, ".gitconfig")); err == nil {
+			if _, err := os.Lstat(filepath.Join(home, ".gitconfig")); err != nil {
+				t.Fatalf(".gitconfig should be mirrored into the fast home")
+			}
+		}
+	})
+
+	t.Run("--with-mcp opts out", func(t *testing.T) {
+		env := applyFastHome(map[string]string{}, "grok", true)
+		if _, ok := env["HOME"]; ok {
+			t.Fatalf("--with-mcp must leave HOME untouched")
+		}
+	})
+
+	t.Run("other backends untouched", func(t *testing.T) {
+		env := applyFastHome(map[string]string{}, "codex", false)
+		if _, ok := env["HOME"]; ok {
+			t.Fatalf("codex must not be rerouted")
+		}
+	})
+}
+
+func TestOpencodeBuildArgs_NewMode(t *testing.T) {
+	cfg := &Config{Mode: "new", WorkDir: "/tmp/project", Backend: "opencode"}
+	args := buildOpencodeArgs(cfg, "do the task")
+
+	if len(args) == 0 || args[0] != "run" {
+		t.Fatalf("opencode must start with the run subcommand: %v", args)
+	}
+	joined := strings.Join(args, " ")
+	if !strings.Contains(joined, "--format json") {
+		t.Fatalf("args missing --format json: %v", args)
+	}
+	if args[len(args)-1] != "do the task" {
+		t.Fatalf("message must be the trailing positional arg: %v", args)
+	}
+}
+
+func TestOpencodeBuildArgs_NeverForwardsStdinMarker(t *testing.T) {
+	// "-" is the wrapper's internal stdin marker; opencode would treat it as a
+	// literal message.
+	cfg := &Config{Mode: "new", Backend: "opencode"}
+	for _, a := range buildOpencodeArgs(cfg, "-") {
+		if a == "-" {
+			t.Fatalf("stdin marker leaked into opencode args: %v", buildOpencodeArgs(cfg, "-"))
+		}
+	}
+}
+
+func TestOpencodeBuildArgs_ResumeAndModel(t *testing.T) {
+	cfg := &Config{Mode: "resume", SessionID: "ses_abc", Backend: "opencode", OpencodeModel: "anthropic/claude-sonnet-4-5"}
+	joined := strings.Join(buildOpencodeArgs(cfg, "continue"), " ")
+
+	if !strings.Contains(joined, "-s ses_abc") {
+		t.Fatalf("resume args missing -s <session>: %s", joined)
+	}
+	if !strings.Contains(joined, "-m anthropic/claude-sonnet-4-5") {
+		t.Fatalf("args missing -m provider/model: %s", joined)
+	}
+}
+
+func TestParseJSONStream_OpencodeEvents(t *testing.T) {
+	stream := `{"type":"text","sessionID":"ses_001","part":{"type":"text","text":"Hello"}}
+{"type":"text","sessionID":"ses_001","part":{"type":"text","text":" world"}}
+{"type":"step-finish","sessionID":"ses_001","part":{"type":"step-finish","reason":"stop"}}
+`
+	message, threadID := parseJSONStreamInternal(strings.NewReader(stream), nil, nil, nil, nil)
+	if message != "Hello world" {
+		t.Fatalf("message = %q, want %q", message, "Hello world")
+	}
+	if threadID != "ses_001" {
+		t.Fatalf("threadID = %q, want ses_001", threadID)
+	}
+}
+
+func TestParseJSONStream_OpencodeErrorEventCarriesSession(t *testing.T) {
+	// Real shape captured from `opencode run --format json` on an auth failure:
+	// sessionID present, no part. Must not be misread as another backend.
+	stream := `{"type":"error","timestamp":1786513156960,"sessionID":"ses_002","error":{"name":"APIError"}}
+`
+	message, threadID := parseJSONStreamInternal(strings.NewReader(stream), nil, nil, nil, nil)
+	if message != "" {
+		t.Fatalf("error-only stream should produce no message, got %q", message)
+	}
+	if threadID != "" && threadID != "ses_002" {
+		t.Fatalf("unexpected threadID %q", threadID)
+	}
+}
+
+func TestParseJSONStream_OpencodeDoesNotCollideWithGemini(t *testing.T) {
+	// Gemini uses "sessionId" (lowercase d) and no part; opencode uses
+	// "sessionID" plus part. Both must land in their own branch.
+	gem := `{"type":"init","sessionId":"g1"}
+{"type":"message","role":"assistant","content":"GEM"}
+{"type":"result","status":"success","sessionId":"g1"}
+`
+	msg, _ := parseJSONStreamInternal(strings.NewReader(gem), nil, nil, nil, nil)
+	if msg != "GEM" {
+		t.Fatalf("gemini message = %q, want GEM", msg)
+	}
+
+	oc := `{"type":"text","sessionID":"o1","part":{"type":"text","text":"OC"}}`
+	msg2, tid := parseJSONStreamInternal(strings.NewReader(oc), nil, nil, nil, nil)
+	if msg2 != "OC" {
+		t.Fatalf("opencode message = %q, want OC", msg2)
+	}
+	if tid != "o1" {
+		t.Fatalf("opencode threadID = %q, want o1", tid)
+	}
+}

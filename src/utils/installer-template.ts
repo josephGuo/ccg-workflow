@@ -69,6 +69,8 @@ export function injectConfigVariables(content: string, config: {
     review?: { models?: string[] }
     geminiModel?: string
     grokModel?: string
+    kimiModel?: string
+    opencodeModel?: string
   }
   liteMode?: boolean
   mcpProvider?: string
@@ -163,6 +165,55 @@ export function injectConfigVariables(content: string, config: {
         return line.replace(/\{\{GROK_MODEL_FLAG\}\}/g, '')
       }
       return line.replace(/\{\{GROK_MODEL_FLAG\}\}/g, grokModelFlagValue)
+    }).join('\n')
+  }
+
+  // Kimi model flag — optional: an empty kimiModel means "use whatever
+  // default_model kimi's own config.toml declares", so emit nothing.
+  const kimiModel = (routing.kimiModel || '').trim()
+  const usesKimi = frontendPrimary === 'kimi' || backendPrimary === 'kimi'
+    || frontendModels.includes('kimi') || backendModels.includes('kimi')
+
+  if (!usesKimi || !kimiModel) {
+    processed = processed.replace(/\{\{KIMI_MODEL_FLAG\}\}/g, '')
+  }
+  else {
+    const kimiModelFlagValue = `--kimi-model ${kimiModel} `
+    const hardCodedBackendRe = /--backend\s+([a-z0-9-]+)(?:\s|$)/
+
+    processed = processed.split('\n').map((line) => {
+      if (!line.includes('{{KIMI_MODEL_FLAG}}')) {
+        return line
+      }
+      const m = line.match(hardCodedBackendRe)
+      if (m && m[1] !== 'kimi') {
+        return line.replace(/\{\{KIMI_MODEL_FLAG\}\}/g, '')
+      }
+      return line.replace(/\{\{KIMI_MODEL_FLAG\}\}/g, kimiModelFlagValue)
+    }).join('\n')
+  }
+
+  // Opencode model flag — optional, same line-aware rules as the others.
+  const opencodeModel = (routing.opencodeModel || '').trim()
+  const usesOpencode = frontendPrimary === 'opencode' || backendPrimary === 'opencode'
+    || frontendModels.includes('opencode') || backendModels.includes('opencode')
+
+  if (!usesOpencode || !opencodeModel) {
+    processed = processed.replace(/\{\{OPENCODE_MODEL_FLAG\}\}/g, '')
+  }
+  else {
+    const opencodeModelFlagValue = `--opencode-model ${opencodeModel} `
+    const hardCodedBackendRe = /--backend\s+([a-z0-9-]+)(?:\s|$)/
+
+    processed = processed.split('\n').map((line) => {
+      if (!line.includes('{{OPENCODE_MODEL_FLAG}}')) {
+        return line
+      }
+      const m = line.match(hardCodedBackendRe)
+      if (m && m[1] !== 'opencode') {
+        return line.replace(/\{\{OPENCODE_MODEL_FLAG\}\}/g, '')
+      }
+      return line.replace(/\{\{OPENCODE_MODEL_FLAG\}\}/g, opencodeModelFlagValue)
     }).join('\n')
   }
 

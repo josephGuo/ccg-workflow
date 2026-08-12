@@ -79,6 +79,9 @@ func (r *realCmd) Start() error {
 	if r.cmd == nil {
 		return errors.New("command is nil")
 	}
+	// Give the backend its own process group so nested wrapper sessions can't
+	// signal each other (issue #151). No-op on Windows.
+	isolateProcessGroup(r.cmd)
 	return r.cmd.Start()
 }
 
@@ -821,14 +824,17 @@ func runCodexTaskWithContext(parentCtx context.Context, taskSpec TaskSpec, backe
 	logger := injectedLogger
 
 	cfg := &Config{
-		Mode:        taskSpec.Mode,
-		Task:        taskSpec.Task,
-		SessionID:   taskSpec.SessionID,
-		WorkDir:     taskSpec.WorkDir,
-		Backend:     defaultBackendName,
-		Progress:    taskSpec.Progress,
-		GeminiModel: taskSpec.GeminiModel,
-		GrokModel:   taskSpec.GrokModel,
+		Mode:          taskSpec.Mode,
+		Task:          taskSpec.Task,
+		SessionID:     taskSpec.SessionID,
+		WorkDir:       taskSpec.WorkDir,
+		Backend:       defaultBackendName,
+		Progress:      taskSpec.Progress,
+		GeminiModel:   taskSpec.GeminiModel,
+		GrokModel:     taskSpec.GrokModel,
+		KimiModel:     taskSpec.KimiModel,
+		OpencodeModel: taskSpec.OpencodeModel,
+		WithMCP:       taskSpec.WithMCP,
 	}
 
 	commandName := codexCommand
@@ -868,7 +874,7 @@ func runCodexTaskWithContext(parentCtx context.Context, taskSpec TaskSpec, backe
 	// platform, including Windows (#146). The cmd.exe truncation risk is
 	// accepted because a truncated prompt is better than a silent no-op.
 	// Grok is a native binary (no .cmd shim), so -p is safe on every platform.
-	promptDirect := useStdin && ((cfg.Backend == "gemini" && !isWindows()) || cfg.Backend == "antigravity" || cfg.Backend == "grok")
+	promptDirect := useStdin && ((cfg.Backend == "gemini" && !isWindows()) || cfg.Backend == "antigravity" || cfg.Backend == "grok" || cfg.Backend == "kimi" || cfg.Backend == "opencode")
 	promptStdinPipe := useStdin && cfg.Backend == "gemini" && isWindows()
 	if useStdin && !promptDirect && !promptStdinPipe {
 		targetArg = "-"
@@ -994,6 +1000,9 @@ func runCodexTaskWithContext(parentCtx context.Context, taskSpec TaskSpec, backe
 	if env == nil {
 		env = make(map[string]string)
 	}
+	// Hide Claude Code's MCP/skill config from backends that auto-discover it —
+	// the single biggest latency win (~25s/call). See fasthome.go.
+	env = applyFastHome(env, cfg.Backend, cfg.WithMCP)
 	cmd.SetEnv(env) // SetEnv 会自动合并 os.Environ() (executor.go:122-161)
 
 	// Set working directory for backends that don't support -C flag.
@@ -1503,7 +1512,13 @@ func terminateCommand(cmd commandRunner) *forceKillTimer {
 			_ = proc.Kill()
 		}
 	} else {
-		_ = proc.Signal(syscall.SIGTERM)
+		// Signal the backend's whole process group — it is its own group leader
+		// (see procgroup_unix.go), so this also reaps the shell children it
+		// spawned, mirroring what taskkill /T does on Windows. Fall back to the
+		// single process if the group is already gone.
+		if err := killProcessGroup(proc.Pid(), syscall.SIGTERM); err != nil {
+			_ = proc.Signal(syscall.SIGTERM)
+		}
 	}
 
 	done := make(chan struct{}, 1)
@@ -1512,7 +1527,9 @@ func terminateCommand(cmd commandRunner) *forceKillTimer {
 			if isWindows() {
 				_ = killProcessTree(p.Pid())
 			} else {
-				_ = p.Kill()
+				if err := killProcessGroup(p.Pid(), syscall.SIGKILL); err != nil {
+					_ = p.Kill()
+				}
 			}
 		}
 		close(done)
