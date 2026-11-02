@@ -326,6 +326,8 @@ Set in `~/.claude/settings.json` under `"env"`:
 |----------|---------|-------------|
 | `CODEX_TIMEOUT` | `7200` | Wrapper timeout (seconds) |
 | `CODEAGENT_POST_MESSAGE_DELAY` | `5` | Post-completion delay |
+| `CODEAGENT_BROWSER` | `default` | Set to `builtin` to stop opening the system browser for the Web UI |
+| `CODEAGENT_AGY_SETTINGS` | - | Settings file passed to agy as `--settings` (needs an agy that has the flag) |
 | `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS` | unset | Set `1` for parallel Agent Teams |
 
 ## Update / Uninstall
@@ -379,4 +381,4 @@ MIT
 
 ---
 
-v3.7.3 | [Issues](https://github.com/fengshao1227/ccg-workflow/issues) | [Contributing](./CONTRIBUTING.md)
+v3.7.4 | [Issues](https://github.com/fengshao1227/ccg-workflow/issues) | [Contributing](./CONTRIBUTING.md)
