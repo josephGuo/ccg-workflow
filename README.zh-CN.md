@@ -326,6 +326,8 @@ npx ccg-workflow diagnose-mcp             # 诊断 MCP 问题
 |------|--------|------|
 | `CODEX_TIMEOUT` | `7200` | Wrapper 超时（秒） |
 | `CODEAGENT_POST_MESSAGE_DELAY` | `5` | 完成后延迟（秒） |
+| `CODEAGENT_BROWSER` | `default` | 设为 `builtin` 时不自动打开系统浏览器 |
+| `CODEAGENT_AGY_SETTINGS` | - | 作为 `--settings` 传给 agy 的配置文件（需 agy 支持该参数） |
 | `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS` | 未设置 | 设为 `1` 启用 Agent Teams 并行 |
 
 ## 更新 / 卸载
@@ -379,4 +381,4 @@ MIT
 
 ---
 
-v3.7.3 | [Issues](https://github.com/fengshao1227/ccg-workflow/issues) | [Contributing](./CONTRIBUTING.md)
+v3.7.4 | [Issues](https://github.com/fengshao1227/ccg-workflow/issues) | [Contributing](./CONTRIBUTING.md)
